@@ -1,0 +1,30 @@
+name: Cerby AWS SES Integration
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: Install pipenv
+        run: pip install pipenv
+      - name: Install dependencies
+        run:  pipenv install --dev
+      - name: Run linter
+        run: pipenv run linter
+      - name: Run sort
+        run: pipenv run sort --check
+      - name: Run format
+        run: pipenv run format --check
+      - name: Run tests
+        run: pipenv run pytest
