@@ -8,7 +8,7 @@ We encorage you to run this tool within a [CloudShell](https://aws.amazon.com/cl
 
 1. Clone this repository
     ```shell
-    git clone https://github.com/cerbyinc/cerby-aws-ses-integration.git && cd aws-ses-integration
+    git clone https://github.com/cerbyinc/cerby-aws-ses-integration.git && cd cerby-aws-ses-integration
     ```
 1. Execute it
     ```
