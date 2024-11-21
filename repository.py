@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from aws import get_client
-from models import HostedZoneRecord, Identity
+from models import DkimAttributes, HostedZoneRecord, MailFromDomainAttributes
 
 
 class AWSIdentityRepository:
@@ -9,8 +9,8 @@ class AWSIdentityRepository:
         super().__init__()
         self.client = get_client("ses")
 
-    def add(self, new: Identity) -> Identity:
-        identity = self.get(new.name)
+    def add_dkim_attributes(self, new: DkimAttributes) -> DkimAttributes:
+        identity = self.get_dkim_attributes(new.name)
         if identity:
             new = identity
         else:
@@ -19,15 +19,48 @@ class AWSIdentityRepository:
             new.verification_status = "Pending"
         return new
 
-    def get(self, name: str) -> Optional[Identity]:
+    def get_dkim_attributes(self, name: str) -> Optional[DkimAttributes]:
         identities = self.client.get_identity_dkim_attributes(Identities=[name])
         if name in identities["DkimAttributes"]:
             attributes = identities["DkimAttributes"][name]
-            return Identity(
-                name, attributes["DkimTokens"], attributes["DkimVerificationStatus"]
+            return DkimAttributes(
+                name=name,
+                dkim_tokens=attributes["DkimTokens"],
+                verification_status=attributes["DkimVerificationStatus"],
             )
         else:
             return None
+
+    def add_mail_from_domain_attributes(self, new: MailFromDomainAttributes):
+        attributes = self.get_mail_from_domain_attributes(new.name)
+        if attributes and new.mail_from_domain:
+            new = attributes
+        else:
+            self.client.set_identity_mail_from_domain(
+                Identity=new.name,
+                BehaviorOnMXFailure=new.behavior_on_mx_failure,
+                MailFromDomain=new.mail_from_domain,
+            )
+            new.mail_from_domain_status = "Pending"
+        return new
+
+    def get_mail_from_domain_attributes(
+        self, name: str
+    ) -> Optional[MailFromDomainAttributes]:
+        identity = self.client.get_identity_mail_from_domain_attributes(
+            Identities=[name]
+        )
+        if name in identity["MailFromDomainAttributes"]:
+            attributes = identity["MailFromDomainAttributes"][name]
+            if attributes.get("MailFromDomain", None) is None:
+                return None
+            return MailFromDomainAttributes(
+                name=name,
+                behavior_on_mx_failure=attributes["BehaviorOnMXFailure"],
+                mail_from_domain=attributes["MailFromDomain"],
+                mail_from_domain_status=attributes["MailFromDomainStatus"],
+            )
+        return None
 
 
 class AWSHostedZoneRepository:
@@ -57,7 +90,7 @@ class AWSHostedZoneRecordsRepository:
         super().__init__()
         self.client = get_client("route53")
 
-    def add(self, record: HostedZoneRecord):
+    def add(self, hosted_zone_id: str, record: HostedZoneRecord):
         values = []
         for value in record.values:
             values.append({"Value": value})
@@ -73,7 +106,7 @@ class AWSHostedZoneRecordsRepository:
         }
 
         self.client.change_resource_record_sets(
-            HostedZoneId=record.hosted_zone_id,
+            HostedZoneId=hosted_zone_id,
             ChangeBatch={
                 "Comment": "For Cerby AWS SES Integration",
                 "Changes": [change],
@@ -86,15 +119,15 @@ class AWSHostedZoneRecordsRepository:
         records = []
         for record_set in resource_record_sets:
             values = []
-            for resource_record in record_set["ResourceRecords"]:
-                values.append(resource_record["Value"])
-            records.append(
-                HostedZoneRecord(
-                    hosted_zone_id,
-                    record_set["Name"],
-                    record_set["Type"],
-                    record_set["TTL"],
-                    values,
+            if record_set.get("Type", "") in ["CNAME", "TXT", "MX"]:
+                for resource_record in record_set.get("ResourceRecords", []):
+                    values.append(resource_record["Value"])
+                records.append(
+                    HostedZoneRecord(
+                        record_set.get("Name"),
+                        record_set.get("Type"),
+                        record_set.get("TTL", 0),
+                        values,
+                    )
                 )
-            )
         return records

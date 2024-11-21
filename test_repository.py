@@ -1,6 +1,4 @@
-from unittest.mock import MagicMock, patch
-
-from models import HostedZoneRecord, Identity
+from models import DkimAttributes, HostedZoneRecord, MailFromDomainAttributes
 from repository import (
     AWSHostedZoneRecordsRepository,
     AWSHostedZoneRepository,
@@ -8,53 +6,76 @@ from repository import (
 )
 
 
-@patch("boto3.session.Session.client")
-def test_identity_repository_add(mock_client: MagicMock):
-    mock_client.return_value = mock_client
-    mock_client.get_identity_dkim_attributes.return_value = {"DkimAttributes": {}}
-    mock_client.verify_domain_dkim.return_value = {"DkimTokens": ["token-a", "token-b"]}
+def test_identity_repository_add_dkim_attributes(mock_boto3_client_patch):
     identity_repo = AWSIdentityRepository()
-    identity = Identity("my-identity.com")
+    identity_dkim_attributes = DkimAttributes("new-identity-present-in-route53.com")
 
-    identity = identity_repo.add(identity)
-    assert identity
-    assert identity.verification_status == "Pending"
-    assert identity.dkim_tokens == ["token-a", "token-b"]
+    identity_dkim_attributes = identity_repo.add_dkim_attributes(
+        identity_dkim_attributes
+    )
+    assert identity_dkim_attributes
+    assert identity_dkim_attributes.verification_status == "Pending"
+    assert identity_dkim_attributes.dkim_tokens == ["token-a", "token-b"]
 
 
-@patch("boto3.session.Session.client")
-def test_identity_repository_get(mock_client: MagicMock):
-    mock_client.return_value = mock_client
-    mock_client.get_identity_dkim_attributes.return_value = {
-        "DkimAttributes": {
-            "my-identity.com": {
-                "DkimTokens": [
-                    "token-a",
-                    "token-b",
-                ],
-                "DkimVerificationStatus": "Pending",
-            }
-        }
-    }
+def test_identity_repository_get_dkim_attributes(mock_boto3_client_patch):
     identity_repo = AWSIdentityRepository()
 
-    identity = identity_repo.get("my-identity.com")
-    assert identity
-    assert identity.verification_status == "Pending"
-    assert identity.dkim_tokens == ["token-a", "token-b"]
+    identity_dkim_attributes = identity_repo.get_dkim_attributes(
+        "existing-identity-present-in-route53.com"
+    )
+    assert identity_dkim_attributes
+    assert identity_dkim_attributes.verification_status == "Pending"
+    assert identity_dkim_attributes.dkim_tokens == ["token-a", "token-b"]
 
-    identity = identity_repo.get("unknown.com")
-    assert identity is None
+    identity_dkim_attributes = identity_repo.get_dkim_attributes("unknown.com")
+    assert identity_dkim_attributes is None
 
 
-@patch("boto3.session.Session.client")
-def test_hosted_zone_repository_get(mock_client: MagicMock):
-    mock_client.return_value = mock_client
-    mock_client.list_hosted_zones_by_name.return_value = {
-        "HostedZones": [{"Name": "my-identity.com", "Id": "some-long-id"}]
-    }
+def test_identity_repository_add_mail_from_domain_attributes(mock_boto3_client_patch):
+    identity_repo = AWSIdentityRepository()
+    identity_mail_from_domain_attributes = MailFromDomainAttributes(
+        name="existing-identity-present-in-route53.com",
+        mail_from_domain="bounce.existing-identity-present-in-route53.com",
+    )
+
+    identity_mail_from_domain_attributes = (
+        identity_repo.add_mail_from_domain_attributes(
+            identity_mail_from_domain_attributes
+        )
+    )
+    assert identity_mail_from_domain_attributes
+    assert identity_mail_from_domain_attributes.mail_from_domain_status == "Pending"
+
+
+def test_identity_repository_get_mail_from_domain_attributes(mock_boto3_client_patch):
+    identity_repo = AWSIdentityRepository()
+
+    identity_mail_from_domain_attributes = (
+        identity_repo.get_mail_from_domain_attributes(
+            name="existing-identity-present-in-route53.com"
+        )
+    )
+    assert identity_mail_from_domain_attributes
+    assert identity_mail_from_domain_attributes.mail_from_domain_status == "Pending"
+
+
+def test_identity_repository_get_mail_from_domain_attributes_empty(
+    mock_boto3_client_patch,
+):
+    identity_repo = AWSIdentityRepository()
+
+    identity_mail_from_domain_attributes = (
+        identity_repo.get_mail_from_domain_attributes(
+            name="empty-mail-from-attributes.com"
+        )
+    )
+    assert identity_mail_from_domain_attributes is None
+
+
+def test_hosted_zone_repository_get(mock_boto3_client_patch):
     hosted_zone_repo = AWSHostedZoneRepository()
-    hosted_zone = hosted_zone_repo.get("my-identity.com")
+    hosted_zone = hosted_zone_repo.get("new-identity-present-in-route53.com")
 
     assert hosted_zone
     assert hosted_zone == "some-long-id"
@@ -63,12 +84,8 @@ def test_hosted_zone_repository_get(mock_client: MagicMock):
     assert hosted_zone is None
 
 
-@patch("boto3.session.Session.client")
-def test_hosted_zone_records_repository_add(mock_client: MagicMock):
-    mock_client.return_value = mock_client
-    mock_client.change_resource_record_sets()
+def test_hosted_zone_records_repository_add(mock_boto3_client_patch):
     record = HostedZoneRecord(
-        "some-long-id",
         "token-a._domainkey.us-east-1.my-identity.com",
         "CNAME",
         300,
@@ -76,35 +93,23 @@ def test_hosted_zone_records_repository_add(mock_client: MagicMock):
     )
 
     hosted_zone_record_repo = AWSHostedZoneRecordsRepository()
-    hosted_zone_record_repo.add(record)
+    hosted_zone_record_repo.add(hosted_zone_id="some-long-id", record=record)
 
-    mock_client.change_resource_record_sets.assert_called()
+    # client is mocked
+    hosted_zone_record_repo.client.change_resource_record_sets.assert_called()
 
 
-@patch("boto3.session.Session.client")
-def test_hosted_zone_records_repository_get(mock_client: MagicMock):
-    mock_client.return_value = mock_client
-    mock_client.list_resource_record_sets.return_value = {
-        "ResourceRecordSets": [
-            {
-                "Name": "token-a._domainkey.us-east-1.my-identity.com",
-                "Type": "CNAME",
-                "TTL": 300,
-                "ResourceRecords": [{"Value": "token-a.dkim.amazonses.com"}],
-            }
-        ]
-    }
+def test_hosted_zone_records_repository_get(mock_boto3_client_patch):
+    hosted_zone_record_repo = AWSHostedZoneRecordsRepository()
     record = HostedZoneRecord(
-        "some-long-id",
-        "token-a._domainkey.us-east-1.my-identity.com",
+        "token-a._domainkey.my-identity.com",
         "CNAME",
         300,
         ["token-a.dkim.amazonses.com"],
     )
 
-    hosted_zone_record_repo = AWSHostedZoneRecordsRepository()
-    records = hosted_zone_record_repo.get("some-long-id")
+    records = hosted_zone_record_repo.get(hosted_zone_id="token-a-id")
     assert record in records
 
-    records = hosted_zone_record_repo.get("short-id")
+    records = hosted_zone_record_repo.get(hosted_zone_id="token-b-id")
     assert record not in records
