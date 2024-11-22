@@ -1,19 +1,18 @@
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import List, Optional
 
 
 @dataclass
-class Identity:
+class DkimAttributes:
     name: str
-    dkim_tokens: List[str] = None
-    verification_status: str = None
+    verification_status: str = "Pending"
+    dkim_tokens: List[str] = field(default_factory=list)
 
-    def dkim_tokens_as_records(self, hosted_zone_id: str, domain: str):
+    def dkim_tokens_as_records(self, domain: str):
         records: list = []
         for dkim_token in self.dkim_tokens:
             records.append(
                 HostedZoneRecord(
-                    hosted_zone_id,
                     f"{dkim_token}._domainkey.{domain}",
                     "CNAME",
                     300,
@@ -24,23 +23,26 @@ class Identity:
 
 
 @dataclass
+class MailFromDomainAttributes:
+    name: str
+    mail_from_domain: str
+    behavior_on_mx_failure: str = "UseDefaultValue"
+    mail_from_domain_status: Optional[str] = None
+
+
+@dataclass
 class HostedZoneRecord:
-    hosted_zone_id: str
     name: str
     type: str
     ttl: int = 300
-    values: List[str] = None
+    values: List[str] = field(default_factory=list)
 
     def __eq__(self, __o: object) -> bool:
         if not isinstance(__o, HostedZoneRecord):
             return False
-        if (
-            self.hosted_zone_id == __o.hosted_zone_id
-            and __o.name in self.name
-            and self.type == __o.type
-        ):
+        if __o.name in self.name and self.type == __o.type:
             return True
         return False
 
     def __hash__(self):
-        return hash(self.hosted_zone_id + self.name + self.type)
+        return hash(self.name + self.type)
