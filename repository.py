@@ -20,7 +20,8 @@ class AWSIdentityRepository:
         return new
 
     def get_dkim_attributes(self, name: str) -> Optional[DkimAttributes]:
-        identities = self.client.get_identity_dkim_attributes(Identities=[name])
+        identities = self.client.get_identity_dkim_attributes(Identities=[
+                                                              name])
         if name in identities["DkimAttributes"]:
             attributes = identities["DkimAttributes"][name]
             return DkimAttributes(
@@ -61,6 +62,18 @@ class AWSIdentityRepository:
                 mail_from_domain_status=attributes["MailFromDomainStatus"],
             )
         return None
+
+    def add_receipt_rule_set(self):
+        pass
+
+    def get_receipt_rule_set(self):
+        pass
+
+    def add_receipt_rule(self):
+        pass
+
+    def get_receipt_rule(self):
+        pass
 
 
 class AWSHostedZoneRepository:
@@ -114,7 +127,8 @@ class AWSHostedZoneRecordsRepository:
         )
 
     def get(self, hosted_zone_id: str) -> List[HostedZoneRecord]:
-        response = self.client.list_resource_record_sets(HostedZoneId=hosted_zone_id)
+        response = self.client.list_resource_record_sets(
+            HostedZoneId=hosted_zone_id)
         resource_record_sets = response["ResourceRecordSets"]
         records = []
         for record_set in resource_record_sets:

@@ -15,6 +15,9 @@ def get_args():
     parser.add_argument(
         "domain", type=str, help="Domain to configure, e.g. cerby.company.com"
     )
+    parser.add_argument(
+        "workspace", type=str, help="Your workspace organization name"
+    )
     return parser.parse_args()
 
 
