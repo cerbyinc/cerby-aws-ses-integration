@@ -1,5 +1,6 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
+import boto3
 import pytest
 
 
@@ -134,3 +135,12 @@ def mock_boto3_client_patch():
     with patch("boto3.session.Session.client") as mock_client_method:
         mock_client_method.side_effect = mock_boto3_client
         yield mock_client_method
+
+
+@pytest.fixture
+def mock_boto3_region_patch():
+    with patch.object(
+        boto3.session.Session, "region_name", new_callable=PropertyMock
+    ) as mock_region_field:
+        mock_region_field.return_value = "us-east-1"
+        yield mock_region_field

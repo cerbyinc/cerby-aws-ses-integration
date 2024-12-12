@@ -85,7 +85,7 @@ class SESActions:
                 mail_from_domain,
                 "MX",
                 600,
-                [f"10 inbound-smtp.{self.region}.amazonaws.com"],
+                [f"10 feedback-smtp.{self.region}.amazonses.com"],
             ),
             "TXT": HostedZoneRecord(
                 mail_from_domain,
