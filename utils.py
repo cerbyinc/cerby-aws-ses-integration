@@ -40,12 +40,12 @@ def print_banner():
     """Prints an awesome banner"""
     print(
         """
-                   _        
+                   _  
                   | |       
   ____ _____  ____| |__  _   _
- / ___) ___ |/ ___)  _ \| | | |
+ / ___) ___ |/ ___)  _ \\| | | |
 ( (___| ____| |   | |_) ) |_| |
- \____)_____)_|   |____/ \__  |
+ \\____)_____)_|   |____/ \\__  |
                         (____/
 
 Welcome to the Cerby's AWS SES Configuration tool
@@ -63,15 +63,19 @@ def aws_error(error: str):
     print(
         """
     Please, make sure that you have the following permissions:
-
         AWS SES
-        ses:GetIdentityDkimAttributes
-        ses:SetIdentityMailFromDomain
-        ses:VerifyDomainDkim
+            ses:GetIdentityDkimAttributes
+            ses:SetIdentityMailFromDomain
+            ses:VerifyDomainDkim
+            ses:CreateReceiptRule
+            ses:CreateReceiptRuleSet
+            ses:DescribeReceiptRule
+            ses:DescribeReceiptRuleSet
+            ses:SetActiveReceiptRuleSet
 
         AWS Route53
-        route53:ChangeResourceRecordSets
-        route53:ListHostedZonesByName
+            route53:ChangeResourceRecordSets
+            route53:ListHostedZonesByName
         """
     )
     print(f"Error Summary:\n\t{error}")

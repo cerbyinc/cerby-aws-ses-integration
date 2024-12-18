@@ -12,7 +12,7 @@ We encorage you to run this tool within a [CloudShell](https://aws.amazon.com/cl
     ```
 1. Execute it
     ```
-    python3 main.py <domain>
+    python3 main.py <domain> --workspace <your-workspace-name>
     ```
 
 1. Tool will proceed to create the following resources:
@@ -20,6 +20,7 @@ We encorage you to run this tool within a [CloudShell](https://aws.amazon.com/cl
     - Create DKIM records in the hosted zone.
     - Create MAIL From using `bounce.${domain}`
     - Create MX record
+    - Create RuleSet, and Rule to deliver arriving email to Cerby (you need to add the --workspace flag to create these resources)
 
 
 Tool will try to to add the DNS records to your Route53, if a hosted zone with the specified domain is not found, we still output the records so you can add [DKIM](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/send-email-authentication-dkim-easy-setup-domain.html) and [MX](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/receiving-email-mx-record.html) it to your DNS provider.
