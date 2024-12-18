@@ -1,7 +1,19 @@
 from typing import List, Optional
 
+from botocore.exceptions import ClientError
+
 from aws import get_client
-from models import DkimAttributes, HostedZoneRecord, MailFromDomainAttributes
+from exceptions import (
+    RuleAlreadyExistsException,
+    RuleSetAlreadyExistsException,
+    RuleSetDoesNotExistException,
+)
+from models import (
+    DkimAttributes,
+    HostedZoneRecord,
+    MailFromDomainAttributes,
+    ReceiptRule,
+)
 
 
 class AWSIdentityRepository:
@@ -131,3 +143,44 @@ class AWSHostedZoneRecordsRepository:
                     )
                 )
         return records
+
+
+class AWSReceiptRulesRepository:
+    def __init__(self) -> None:
+        super().__init__()
+        self.client = get_client("ses")
+
+    def create_receipt_rule_set(self, rule_set_name: str):
+        try:
+            self.client.create_receipt_rule_set(RuleSetName=rule_set_name)
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "AlreadyExists":
+                raise RuleSetAlreadyExistsException(
+                    f"Rule set '{rule_set_name}' already exists."
+                )
+            raise
+
+    def set_active_receipt_rule_set(self, rule_set_name: str):
+        try:
+            self.client.set_active_receipt_rule_set(RuleSetName=rule_set_name)
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "RuleSetDoesNotExist":
+                raise RuleSetDoesNotExistException(
+                    f"Rule set '{rule_set_name}' does not exist."
+                )
+            raise
+
+    def create_receipt_rule(self, rule: ReceiptRule):
+        try:
+            self.client.create_receipt_rule(
+                RuleSetName=rule.rule_set_name, Rule=rule.rule
+            )
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "AlreadyExists":
+                raise RuleAlreadyExistsException(
+                    f"Rule set '{rule.name}' already exists."
+                )
+            raise

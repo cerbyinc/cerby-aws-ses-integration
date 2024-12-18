@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 
 
 def mock_boto3_client(service_name):
@@ -59,6 +60,45 @@ def mock_boto3_client(service_name):
                 }
             }
 
+        def create_receipt_rule_set(RuleSetName):
+            if RuleSetName == "rule-set-for-cerby-accessdenied":
+                raise ClientError(
+                    {
+                        "Error": {
+                            "Code": "AccessDenied",
+                            "Message": "User is not authorized to perform this action.",
+                        }
+                    },
+                    "SetActiveReceiptRule",
+                )
+            return {"RuleSetName": RuleSetName}
+
+        def set_active_receipt_rule_set(RuleSetName):
+            if RuleSetName == "rule-set-for-cerby-accessdenied":
+                raise ClientError(
+                    {
+                        "Error": {
+                            "Code": "AccessDenied",
+                            "Message": "User is not authorized to perform this action.",
+                        }
+                    },
+                    "SetActiveReceiptRule",
+                )
+            return {"RuleSetName": RuleSetName}
+
+        def create_receipt_rule(RuleSetName, Rule):
+            if RuleSetName == "rule-set-for-cerby-accessdenied":
+                raise ClientError(
+                    {
+                        "Error": {
+                            "Code": "AccessDenied",
+                            "Message": "User is not authorized to perform this action.",
+                        }
+                    },
+                    "SetActiveReceiptRule",
+                )
+            return {"Rule": Rule}
+
         mock_client.get_identity_dkim_attributes.side_effect = (
             get_identity_dkim_attributes
         )
@@ -67,6 +107,11 @@ def mock_boto3_client(service_name):
             get_identity_mail_from_domain_attributes
         )
         mock_client.set_identity_mail_from_domain = MagicMock()
+        mock_client.create_receipt_rule_set.side_effect = create_receipt_rule_set
+        mock_client.set_active_receipt_rule_set.side_effect = (
+            set_active_receipt_rule_set
+        )
+        mock_client.create_receipt_rule.side_effect = create_receipt_rule
 
     elif service_name == "route53":
 
