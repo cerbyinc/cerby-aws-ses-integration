@@ -18,7 +18,7 @@ from repository import (
     AWSIdentityRepository,
     AWSReceiptRulesRepository,
 )
-from utils import prints
+from utils import extract_main_domain, generate_random_string, prints
 
 
 class SESActions:
@@ -127,10 +127,11 @@ class SESActions:
         else:
             self.records_pending_to_create.extend(records.values())
 
-    def configure_email_receiving_rules(self, workspace: str):
+    def configure_email_receiving_rules(self):
         prints("We are going to configure the receving rule set")
 
-        name = f"rule-set-for-cerby-{workspace}"
+        domain = extract_main_domain(self.domain) or generate_random_string()
+        name = f"rule-set-for-cerby-{domain}"[:100]  # max length is 100 characters
 
         try:
             self.receipt_rules_repo.create_receipt_rule_set(rule_set_name=name)

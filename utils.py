@@ -1,3 +1,6 @@
+import random
+import re
+import string
 from datetime import datetime
 
 
@@ -79,3 +82,14 @@ def aws_error(error: str):
         """
     )
     print(f"Error Summary:\n\t{error}")
+
+
+def extract_main_domain(url: str) -> str:
+    pattern = r"(?:[\w-]+\.)*([\w-]+)\.\w+$"
+    match = re.search(pattern, url)
+    return match.group(1) if match else None
+
+
+def generate_random_string(length: int = 4) -> str:
+    characters = string.ascii_letters + string.digits
+    return "".join(random.choices(characters, k=length))
