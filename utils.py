@@ -1,3 +1,6 @@
+import random
+import re
+import string
 from datetime import datetime
 
 
@@ -40,12 +43,12 @@ def print_banner():
     """Prints an awesome banner"""
     print(
         """
-                   _        
+                   _  
                   | |       
   ____ _____  ____| |__  _   _
- / ___) ___ |/ ___)  _ \| | | |
+ / ___) ___ |/ ___)  _ \\| | | |
 ( (___| ____| |   | |_) ) |_| |
- \____)_____)_|   |____/ \__  |
+ \\____)_____)_|   |____/ \\__  |
                         (____/
 
 Welcome to the Cerby's AWS SES Configuration tool
@@ -63,15 +66,30 @@ def aws_error(error: str):
     print(
         """
     Please, make sure that you have the following permissions:
-
         AWS SES
-        ses:GetIdentityDkimAttributes
-        ses:SetIdentityMailFromDomain
-        ses:VerifyDomainDkim
+            ses:GetIdentityDkimAttributes
+            ses:SetIdentityMailFromDomain
+            ses:VerifyDomainDkim
+            ses:CreateReceiptRule
+            ses:CreateReceiptRuleSet
+            ses:DescribeReceiptRule
+            ses:DescribeReceiptRuleSet
+            ses:SetActiveReceiptRuleSet
 
         AWS Route53
-        route53:ChangeResourceRecordSets
-        route53:ListHostedZonesByName
+            route53:ChangeResourceRecordSets
+            route53:ListHostedZonesByName
         """
     )
     print(f"Error Summary:\n\t{error}")
+
+
+def extract_main_domain(url: str) -> str:
+    pattern = r"(?:[\w-]+\.)*([\w-]+)\.\w+$"
+    match = re.search(pattern, url)
+    return match.group(1) if match else None
+
+
+def generate_random_string(length: int = 4) -> str:
+    characters = string.ascii_letters + string.digits
+    return "".join(random.choices(characters, k=length))

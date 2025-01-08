@@ -1,13 +1,24 @@
 from functools import cached_property
 
 from aws import get_current_region
-from models import DkimAttributes, HostedZoneRecord, MailFromDomainAttributes
+from exceptions import (
+    RuleAlreadyExistsException,
+    RuleSetAlreadyExistsException,
+    RuleSetDoesNotExistException,
+)
+from models import (
+    DkimAttributes,
+    HostedZoneRecord,
+    MailFromDomainAttributes,
+    ReceiptRule,
+)
 from repository import (
     AWSHostedZoneRecordsRepository,
     AWSHostedZoneRepository,
     AWSIdentityRepository,
+    AWSReceiptRulesRepository,
 )
-from utils import prints
+from utils import extract_main_domain, generate_random_string, prints
 
 
 class SESActions:
@@ -17,8 +28,10 @@ class SESActions:
         self.identity_repo = AWSIdentityRepository()
         self.hz_repo = AWSHostedZoneRepository()
         self.hzr_repo = AWSHostedZoneRecordsRepository()
+        self.receipt_rules_repo = AWSReceiptRulesRepository()
         self.hosted_zone_id = self.hz_repo.get(self.domain)
         self.records_pending_to_create = []
+        self.rules_failed_to_create = {}
 
     @cached_property
     def hosted_zone_records(self):
@@ -100,7 +113,7 @@ class SESActions:
         )
         domain_status = self.identity_repo.add_mail_from_domain_attributes(attributes)
 
-        if domain_status.mail_from_domain_status != "Pending":
+        if domain_status.mail_from_domain_status not in ["Pending", "Success"]:
             self.records_pending_to_create.extend(records.values())
             return
 
@@ -113,3 +126,39 @@ class SESActions:
                     prints(f"A {record_type} record is already present")
         else:
             self.records_pending_to_create.extend(records.values())
+
+    def configure_email_receiving_rules(self):
+        prints("We are going to configure the receving rule set")
+
+        domain = extract_main_domain(self.domain) or generate_random_string()
+        name = f"rule-set-for-cerby-{domain}"[:100]  # max length is 100 characters
+
+        try:
+            self.receipt_rules_repo.create_receipt_rule_set(rule_set_name=name)
+        except RuleSetAlreadyExistsException:
+            prints(f"Rule set '{name}' already exists.")
+        except Exception as e:
+            self.rules_failed_to_create[name] = str(e)
+            raise e
+
+        proxy_rule = ReceiptRule(name=name, rule_set_name=name)
+        proxy_rule.create_proxy_rule(
+            bucket_name="cerby-store-ses-email-production", prefix="staged"
+        )
+
+        try:
+            self.receipt_rules_repo.create_receipt_rule(rule=proxy_rule)
+        except RuleAlreadyExistsException:
+            prints(f"Rule '{name}' already exists.")
+        except Exception as e:
+            self.rules_failed_to_create[name] = str(e)
+            raise e
+
+        try:
+            self.receipt_rules_repo.set_active_receipt_rule_set(rule_set_name=name)
+            prints(f"Rule set '{name}' activated.")
+        except RuleSetDoesNotExistException:
+            prints(f"Unable to active Rule set '{name}', it does not exist.")
+        except Exception as e:
+            self.rules_failed_to_create[name] = str(e)
+            raise e
