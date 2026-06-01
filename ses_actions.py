@@ -142,9 +142,15 @@ class SESActions:
             raise e
 
         proxy_rule = ReceiptRule(name=name, rule_set_name=name)
-        proxy_rule.create_proxy_rule(
-            bucket_name="cerby-store-ses-email-production", prefix="staged"
-        )
+
+        if self.region == "ca-central-1":
+            proxy_rule.create_proxy_rule(
+                bucket_name="cerby-store-ses-email-production-ca-central-1", prefix="staged"
+            )
+        else:
+            proxy_rule.create_proxy_rule(
+                bucket_name="cerby-store-ses-email-production", prefix="staged"
+            )
 
         try:
             self.receipt_rules_repo.create_receipt_rule(rule=proxy_rule)
