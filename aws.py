@@ -1,6 +1,6 @@
 from boto3.session import Session
 
-AVAILABLE_REGIONS = ["us-east-1", "us-west-2", "eu-west-1"]
+AVAILABLE_REGIONS = ["us-east-1", "us-west-2", "eu-west-1", "ca-central-1"]
 
 
 def get_client(service: str):
